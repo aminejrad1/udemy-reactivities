@@ -1,13 +1,18 @@
 import { observer } from "mobx-react-lite";
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
+import { Link, useHistory, useParams } from "react-router-dom";
 import { Button, Form, Segment } from "semantic-ui-react";
+import { LoadingComponent } from "../../../app/layout/LoadingComponent";
 import { useStore } from "../../../app/stores/Store";
+import { v4 as uuid} from 'uuid';
 
 export default observer(function ActivityForm(){
+    const history= useHistory();
     const {activityStore}= useStore();
-    const {selectedActivity, closeForm, loading} =activityStore;
-    
-    const initialSate= selectedActivity ?? {
+    const { updateActivivty, createActivity, loading, loadActivity, loadingInitial} =activityStore;
+    const {id} = useParams<{id:string}>();
+
+    const [activity, setActivity]= useState({
         id: '',
         title: '',
         description: '',
@@ -15,15 +20,25 @@ export default observer(function ActivityForm(){
         date: '',
         city: '',
         venue: ''
-    }
+    });
 
-    const [activity, setActivity]= useState(initialSate);
-
-    function handleSubmit(){
-        
-        console.log(activity);
-        activity.id ? activityStore.updateActivivty(activity) : activityStore.createActivity(activity);
+    useEffect(() => {
+        if(id) loadActivity(id).then(activity => setActivity(activity!))   
+    }, [id, loadActivity]) // => dependend if id or load activity changes which runs useEffect only if they change
     
+    function handleSubmit(){ 
+        console.log(activity);
+        if(activity.id.length===0)
+        {
+            let newActivivty= {
+                ...activity, id: uuid()
+            };
+            createActivity(newActivivty).then(() => history.push(`/activities/${newActivivty.id}`));
+        } 
+        else
+        {
+            updateActivivty(activity).then(() => history.push(`/activities/${activity.id}`))
+        }
     }
 
     function handleInputChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> ){
@@ -34,6 +49,8 @@ export default observer(function ActivityForm(){
             }
         )
     }
+
+    if(loadingInitial) return <LoadingComponent></LoadingComponent>
     
     return (
         <Segment clearing>
@@ -45,7 +62,7 @@ export default observer(function ActivityForm(){
                 <Form.Input placeholder="City" value={activity.city} name="city" onChange={handleInputChange}></Form.Input>
                 <Form.Input placeholder="Venue" value={activity.venue} name="venue" onChange={handleInputChange}></Form.Input>
                 <Button loading={loading} floated='right' positive type='submit' content='submit'></Button>
-                <Button floated='right' type='button' content='Cancel' onClick={ closeForm }></Button>
+                <Button as={Link} to={'/activities'} floated='right' type='button' content='Cancel'></Button>
             </Form>
         </Segment>
     )
